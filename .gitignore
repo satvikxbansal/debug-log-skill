@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local notes / drafts (keep the skill clean on GitHub)
+/scratch/
+/local-notes/
+/drafts/
+
+# If you test the skill in a sandbox repo within this folder, ignore it
+/sandbox/
