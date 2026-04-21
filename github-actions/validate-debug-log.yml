@@ -1,0 +1,38 @@
+# validate-debug-log.yml
+#
+# Drop this into your project at `.github/workflows/validate-debug-log.yml`.
+# It validates that every entry in DEBUG_LOG.md follows the seven-field
+# template and that the DL-NNN sequence has no gaps and no reuse.
+#
+# It does NOT enforce "every bug fix has a DL entry" — that check would require
+# distinguishing bug-fix PRs from feature PRs heuristically, which is noisy.
+# Use PR templates / reviewer discipline for that.
+#
+# Also see: scripts/validate_debug_log.py (shipped alongside this workflow).
+
+name: Validate DEBUG_LOG.md
+
+on:
+  pull_request:
+    paths:
+      - "DEBUG_LOG.md"
+      - ".github/workflows/validate-debug-log.yml"
+  push:
+    branches: [main]
+    paths:
+      - "DEBUG_LOG.md"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate DEBUG_LOG.md structure
+        run: |
+          python3 .github/scripts/validate_debug_log.py DEBUG_LOG.md

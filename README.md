@@ -1,8 +1,26 @@
 # debug-log-skill
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Works with Claude Code](https://img.shields.io/badge/Claude%20Code-ready-blueviolet)](editor-integrations/CLAUDE.md)
+[![Works with Cursor](https://img.shields.io/badge/Cursor-rule-5865F2)](editor-integrations/cursor/rules/debug-log.mdc)
+[![Works with Aider / Codex](https://img.shields.io/badge/AGENTS.md-supported-2ea44f)](editor-integrations/AGENTS.md)
+[![CI: validate DEBUG_LOG](https://img.shields.io/badge/CI-validate%20DEBUG__LOG-lightgrey)](github-actions/validate-debug-log.yml)
+
 A Claude / Cursor / Claude-Code skill that makes any LLM a more disciplined debugger. It enforces a structured `DEBUG_LOG.md` discipline, applies a "think before coding" pre-flight, and ships a battle-tested pre-mortem catalog of common traps across web, iOS, Android, and macOS codebases.
 
-> **Status:** v1.0 — stable, opinionated, ready to fork.
+> **Status:** v1.1 — stable, opinionated, ready to fork.
+
+## Install in one command
+
+From inside any project where you want the discipline:
+
+```bash
+curl -sSfL https://raw.githubusercontent.com/<you>/debug-log-skill/main/scripts/init.sh | bash -s -- .
+```
+
+This drops `DEBUG_LOG.md`, `PREVENTION_RULES.md`, and a stub `CLAUDE.md` into your project root (none are overwritten if they already exist). Then commit them.
+
+If you prefer not to pipe curl to bash — fork the repo, clone it, and run `./scripts/init.sh /path/to/your/project` from inside the clone.
 
 ## What this gives you
 
@@ -106,25 +124,44 @@ The skill is designed to be forked. Teams should:
 
 ```
 debug-log-skill/
-├── SKILL.md                       # Main entry point (loaded into LLM context)
-├── README.md                      # This file
-├── LICENSE                        # MIT
-├── CHANGELOG.md                   # Version history
+├── SKILL.md                              # Main entry point (loaded into LLM context)
+├── README.md                             # This file
+├── LICENSE                               # MIT
+├── CHANGELOG.md                          # Version history
+├── CONTRIBUTING.md                       # Contribution guide + entry format
 ├── templates/
-│   ├── DEBUG_LOG.template.md      # Drop at project root
-│   └── PREVENTION_RULES.template.md  # Optional summary doc
+│   ├── DEBUG_LOG.template.md             # Drop at project root
+│   ├── PREVENTION_RULES.template.md      # Generic PREVENTION_RULES starter
+│   ├── PREVENTION_RULES.web.template.md
+│   ├── PREVENTION_RULES.ios.template.md
+│   ├── PREVENTION_RULES.android.template.md
+│   ├── PREVENTION_RULES.macos.template.md
+│   ├── PREVENTION_RULES.kotlin.template.md
+│   └── PREVENTION_RULES.swift.template.md
 ├── references/
-│   ├── web.md                     # Web-stack error catalog
-│   ├── ios.md                     # iOS catalog
-│   ├── android.md                 # Android catalog
-│   ├── macos.md                   # macOS catalog
-│   ├── kotlin.md                  # Language-level Kotlin
-│   ├── swift.md                   # Language-level Swift
-│   ├── cross-cutting.md           # Universal bugs
-│   └── preempt-checklist.md       # Per-track pre-mortem questions
-└── examples/
-    ├── example-DEBUG_LOG.md       # Filled-in example log
-    └── example-session.md         # Walkthrough of a debugging session
+│   ├── web.md                            # Web-stack error catalog
+│   ├── ios.md                            # iOS catalog
+│   ├── android.md                        # Android catalog
+│   ├── macos.md                          # macOS catalog
+│   ├── kotlin.md                         # Language-level Kotlin
+│   ├── swift.md                          # Language-level Swift
+│   ├── cross-cutting.md                  # Universal bugs
+│   ├── preempt-checklist.md              # Per-track pre-mortem questions
+│   └── pre-mortem-workflow.md            # The four-phase workflow for new features
+├── examples/
+│   ├── example-DEBUG_LOG.md              # Filled-in example log
+│   └── example-session.md                # Walkthrough of a debugging session
+├── editor-integrations/
+│   ├── README.md                         # Which file to grab for which editor
+│   ├── CLAUDE.md                         # Sample project-level rules for Claude Code / Cowork
+│   ├── AGENTS.md                         # For Aider / Codex / OpenAI Agents
+│   └── cursor/rules/debug-log.mdc        # Cursor rule file
+├── github-actions/
+│   ├── README.md
+│   ├── validate-debug-log.yml            # CI workflow
+│   └── validate_debug_log.py             # Validator script
+└── scripts/
+    └── init.sh                           # One-shot project initialiser
 ```
 
 ## Prior art and inspiration
@@ -135,7 +172,7 @@ debug-log-skill/
 
 ## Contributing
 
-Good contributions, roughly in order of value:
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full entry format, review criteria, and how to add a new track. Roughly in order of value:
 
 1. **New prevention-rule entries** in the catalog. Must be real bugs you've actually shipped and fixed — not theory.
 2. **New tracks** — e.g., Rust, Go, Flutter, React Native. Follow the shape of existing reference files.
