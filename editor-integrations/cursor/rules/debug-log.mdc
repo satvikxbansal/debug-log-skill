@@ -1,24 +1,40 @@
 ---
-description: DEBUG_LOG discipline — skim DEBUG_LOG.md before coding, append a DL-NNN entry after every bug fix, never skip an entry. Loads catalog references for the project's track(s).
+description: DEBUG_LOG discipline v2.0 — grep DEBUG_LOG.md before coding (do not read end-to-end), append a DL-NNN entry after every bug fix with Tags / Environment / Root Cause Category / Iterations, never skip an entry, mark retired entries [OBSOLETE]. Loads catalog references for the project's track(s).
 globs:
   - "**/*"
 alwaysApply: true
 ---
 
-# DEBUG_LOG discipline
+# DEBUG_LOG discipline (v2.0)
 
-This project follows the [debug-log-skill](https://github.com/<you>/debug-log-skill) protocol. Before writing any non-trivial code, and after fixing any bug, obey the rules below.
+This project follows the [debug-log-skill](https://github.com/<you>/debug-log-skill) protocol v2.0. Before writing any non-trivial code, and after fixing any bug, obey the rules below.
 
-## Before coding
+## Before coding — active pre-flight
 
-1. Open `DEBUG_LOG.md` at the project root. Skim titles. Read any entry whose prevention rule touches the file(s) you are about to edit.
-2. Read the relevant `references/<track>.md` from the skill folder for the track(s) this project uses, plus `references/cross-cutting.md` (always applicable).
-3. For new features, also work through `references/preempt-checklist.md` and `references/pre-mortem-workflow.md`.
-4. State a plan before changes: goal, files touched, interfaces preserved, prevention rules that apply, verification approach.
+**Do not read `DEBUG_LOG.md` end-to-end.** Grep it for what matches the task:
+
+```bash
+# By file path (strongest signal)
+grep -niE "path/to/File\.ext" DEBUG_LOG.md
+
+# By tag (see references/tag-taxonomy.md in the skill folder)
+grep -niE "#Compose|#StateFlow" DEBUG_LOG.md
+
+# By Root Cause Category (the 14 canonical categories)
+grep -niE "Race Condition|Scope Leak|LLM Hallucination" DEBUG_LOG.md
+```
+
+Read only the entries grep surfaces plus those they cross-reference.
+
+Then:
+
+1. Read `references/<track>.md` for each track the project uses, plus `references/cross-cutting.md` and `references/tag-taxonomy.md`.
+2. For new features, also work through `references/preempt-checklist.md` and `references/pre-mortem-workflow.md`.
+3. State a plan: goal, files touched, interfaces preserved, DL numbers with applicable prevention rules, verification approach.
 
 ## Tracks in this project
 
-Edit the checkbox list to reflect this project's stack. Delete rows that don't apply.
+Edit to reflect your stack. Delete rows that don't apply.
 
 - [ ] web — React / Next.js / TypeScript / Node
 - [ ] ios — Swift / SwiftUI / UIKit
@@ -31,18 +47,21 @@ Edit the checkbox list to reflect this project's stack. Delete rows that don't a
 ## The four non-negotiable rules
 
 1. **Sequence.** Entries are numbered `DL-001`, `DL-002`, … Never skip. Never reuse.
-2. **Never skip.** Every bug fix gets a `DL-NNN` entry in the same commit as the fix. No silent fixes.
-3. **Read before coding.** See above.
-4. **Append-only.** Never edit or delete an entry. Supersede with a new one that cross-references the old.
+2. **Never skip.** Every bug fix gets a `DL-NNN` entry in the same commit as the fix.
+3. **Active pre-flight.** Grep the log for file / tag / category. Do not read end-to-end.
+4. **Append-only.** No edits or deletes. When a rule is retired, prepend `[OBSOLETE]` to the title (only permitted mutation) and supersede with a new entry.
 
 ## After fixing a bug
 
-1. Append a `DL-NNN` entry to `DEBUG_LOG.md` with the seven-field template.
-2. Write the prevention rule as imperative, specific, and checkable. End with a **Why:** one-liner.
-3. Stage `DEBUG_LOG.md` in the same commit as the fix.
-4. If the same rule appears in three entries, promote it to `PREVENTION_RULES.md`.
+1. Append a `DL-NNN` entry with the v2.0 template.
+2. Tag it with one track tag + one or more semantic tags (from `references/tag-taxonomy.md`).
+3. Pick a **Root Cause Category** from the 14 canonical categories; use `Other` only as a last resort.
+4. Record **Iterations** honestly. `5+` = mandatory reflection on the wrong assumption.
+5. Write the prevention rule as imperative, specific, checkable, with a **Why:** one-liner.
+6. Stage `DEBUG_LOG.md` in the same commit as the fix.
+7. If a rule now appears in three or more active entries, promote it to `PREVENTION_RULES.md`.
 
-## Entry template
+## Entry template (v2.0)
 
 ```markdown
 ### DL-XXX — [Short Title]
@@ -50,11 +69,14 @@ Edit the checkbox list to reflect this project's stack. Delete rows that don't a
 | Field | Value |
 |-------|-------|
 | **Date** | YYYY-MM-DD |
+| **Tags** | `#track-tag #semantic-tag [#more]` |
 | **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident |
-| **Track** | web / ios / android / macos / kotlin / swift / cross-cutting |
+| **Environment** | Relevant SDK / library / OS versions |
 | **File(s)** | `path/to/file.ext` |
-| **Symptom** | What failed. Quote the error message. |
-| **Root Cause** | Why. 1–3 sentences. Name the misconception. |
-| **Fix** | What was changed. Commit SHA if available. |
+| **Symptom** | What failed. Quote the error. |
+| **Root Cause Category** | API Change / API Deprecation / Race Condition / Scope Leak / Main Thread Block / Hydration Mismatch / Null or Unchecked Access / Type Coercion / Off-By-One / Syntax Error / Config or Build / Test Infrastructure / LLM Hallucination or Assumption / Other |
+| **Root Cause Context** | Why. 1–3 sentences. Name the misconception. |
+| **Fix** | What changed. Commit SHA if available. |
+| **Iterations** | Integer. `0` = first try. `5+` = investigate the loop. |
 | **Prevention Rule** | Imperative, specific, checkable. **Why:** one-liner. |
 ```

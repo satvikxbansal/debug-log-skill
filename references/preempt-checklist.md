@@ -11,10 +11,12 @@ Pair this with [`cross-cutting.md`](cross-cutting.md) — whose questions apply 
 When a new task is non-trivial (touches more than one file, or any module new to you), copy the relevant track's checklist into your plan as a "pre-mortem" section. For each question:
 
 - **Yes, I know the answer** — write the answer in one line, move on.
-- **No, I don't** — look it up in the track's reference catalog, in the project's `DEBUG_LOG.md`, or in docs. Write the answer.
+- **No, I don't** — look it up in the track's reference catalog, run the **active pre-flight grep** on the project's `DEBUG_LOG.md` (by filename / tag / Root Cause Category — see `SKILL.md` step 3), or read the docs. Write the answer you find.
 - **Doesn't apply** — cross it out with a one-line justification.
 
 Skipping a question silently is the failure mode. The checklist exists because the LLM (or human) is about to make a confident-looking guess, and the whole point is to convert a guess into a known answer.
+
+Questions you consistently answer via the same DL entry are high-value candidates for promoting into `PREVENTION_RULES.md` once three or more active entries lean on the same rule.
 
 ---
 

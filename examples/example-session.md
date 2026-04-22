@@ -1,134 +1,156 @@
-# Example session
+# Example session — debug-log-skill in action (v2.0)
 
-> A narrated walkthrough of an LLM-driven debugging session that uses the `debug-log-skill`. The fictional project is a hybrid iOS + Android chat app with a Next.js admin dashboard.
-
-## Setup
-
-The repo has adopted the skill:
-
-- `DEBUG_LOG.md` at the root, with six entries (see [`example-DEBUG_LOG.md`](example-DEBUG_LOG.md)).
-- `PREVENTION_RULES.md` with two rules promoted.
-- `CLAUDE.md` / `.cursor/rules/debug-log.md` / `AGENTS.md` pointing the LLM at the skill.
-
-The LLM is Claude, running in an IDE with file tools.
+> A narrated Claude Code session showing the v2.0 active pre-flight in action. The user is building a social app with a React/Next.js web client and Android/iOS native clients. The feature: let users react to a message with an emoji.
+>
+> Commentary is in italics. Everything else is literal chat transcript.
 
 ---
 
-## Turn 1 — user request
+**User:** Add emoji reactions to messages. Tap the heart icon on a row, pick an emoji from a sheet, it shows next to the message grouped with anyone else who reacted the same way. Works on web, iOS, and Android. Offline-friendly.
 
-> User: "Add a 'react with emoji' feature to the chat. Users tap a message, pick an emoji, and the reaction shows up for everyone in the conversation. Needs to work on iOS, Android, and the dashboard. Make sure it's real-time."
+*The skill loads via its description (keywords: "new feature", "work", implicit multi-track). Claude begins the active pre-flight.*
 
-## Turn 2 — LLM applies the skill
+**Claude:**
+Let me work through the pre-flight before touching any code.
 
-Before writing any code, the LLM:
+### 1. Track selection
 
-1. **Reads `DEBUG_LOG.md`** to look for prevention rules and entries that touch emoji, real-time, or chat features. It finds DL-001 (hydration) and DL-004 (idempotency on side-effectful endpoints).
-2. **Reads `PREVENTION_RULES.md`** for promoted rules.
-3. **Opens `references/preempt-checklist.md`** and copies the cross-cutting, web, iOS, android checklists.
-4. **Looks at `CLAUDE.md`** for project-level guardrails (e.g., "All mobile state lives in a shared Kotlin Multiplatform module", hypothetically).
+Scanning the repo:
 
-## Turn 3 — LLM writes the plan
+- `apps/web/package.json` with Next.js 15 → **#web**
+- `apps/ios/App.xcworkspace` → **#ios**
+- `apps/android/build.gradle.kts` with Compose → **#android**, **#kotlin**
+- `#cross-cutting` (always on)
 
-The LLM produces this as a response, *before* writing any code:
+### 2. Reference catalog load
 
-> **Plan: react-with-emoji feature**
->
-> **DL-derived prevention rules to apply:**
-> - DL-001: the dashboard displays reactions with timestamps; reading `Date.now()` in a React component body would re-trigger the hydration bug. Timestamps format inside a client-only component.
-> - DL-004: the `POST /api/v1/messages/:id/reactions` endpoint creates a side effect (reaction row + websocket broadcast). It must accept an `Idempotency-Key` header; the mobile clients generate one per tap.
->
-> **Pre-mortem — cross-cutting:**
-> - Emoji length: a single emoji with ZWJ sequences (👨‍👩‍👧) is multiple code points but one grapheme. Our validation must count graphemes, not `String.length`. (See [`cross-cutting.md#x03`](../references/cross-cutting.md#x03).)
-> - Real-time via websocket: two users react at the same instant — do we have last-write-wins? Design: reactions are additive (user + emoji + message = unique tuple); deduped at insert. No LWW conflict possible.
-> - Timezone: the "created at" on a reaction is stored UTC; rendered in user's zone at display.
->
-> **Pre-mortem — iOS:**
-> - `List` / `ForEach` over messages — reactions attached to each message. Reactions need a stable `Identifiable` (the tuple, or an id from the backend). Don't mint `UUID()` on decode. (DL-003's rule.)
-> - Reaction picker is a sheet — `.sheet(item:)` not `isPresented:` + state (avoids the DL-007-style race — flagged as "not yet in log but covered by [`ios.md#i07`](../references/ios.md#i07)").
-> - `@MainActor` on the `ChatViewModel`; websocket events from background thread go through `await MainActor.run` or `receive(on:)`. (ios rule i11.)
->
-> **Pre-mortem — Android:**
-> - Compose reaction picker inside a bottom sheet — `rememberSaveable` for the picker's state so rotation doesn't close it. (android rule a03.)
-> - Websocket runs inside a foreground service (chat sync) — we already declared `foregroundServiceType="dataSync"` in DL-002, check the manifest. Done.
-> - Reactions list keyed by `reactionId` (stable from backend), `LazyColumn` handles recomposition.
->
-> **Pre-mortem — web (dashboard):**
-> - Reactions list in a React Server Component? No — it's client-side because of real-time updates via websocket. Mark `'use client'`. No `useState` / `useEffect` in RSC context.
-> - Hydration: the reactions list initial state is fetched server-side, serialised, and the client takes over. Ensure decoded shape is identical between SSR and CSR.
->
-> **Files I'll touch:**
-> - `shared-kotlin/src/.../Reaction.kt` (new)
-> - `shared-kotlin/src/.../ChatRepository.kt` (add `react()` method)
-> - `ios/Chat/ReactionPicker.swift` (new)
-> - `ios/Chat/MessageRow.swift` (wire up long-press + reaction display)
-> - `android/chat/ReactionPickerBottomSheet.kt` (new)
-> - `android/chat/MessageItem.kt` (wire up)
-> - `web/app/messages/[id]/reactions.tsx` (new, client component)
-> - `backend/handlers/reactions.go` (new, with idempotency)
-> - `DEBUG_LOG.md` — reserved DL-007 if I find a bug during implementation.
->
-> Shall I proceed?
+Reading in full:
 
-## Turn 4 — user confirms
+- `references/web.md` — the `#React`, `#RSC`, and `#Hydration` sections
+- `references/ios.md` — the `#SwiftUI`, `#List`, `#Network` sections
+- `references/android.md` — the `#Compose`, `#Lifecycle`, `#Coroutines` sections
+- `references/cross-cutting.md` — always
+- `references/tag-taxonomy.md` — to align my vocabulary
 
-> User: "Yes, go."
+Skimming `references/preempt-checklist.md` for the web, ios, android pre-mortem questions.
 
-## Turn 5 — LLM writes code
+### 3. Active pre-flight grep on DEBUG_LOG.md
 
-The LLM implements the feature, following the plan. Along the way:
+```bash
+# Files I'm likely to touch
+$ grep -niE "MessageRow|ReactionBar|ReactionSheet" DEBUG_LOG.md
+(no results — greenfield feature area)
 
-- Writes the iOS reaction picker using `.sheet(item: $selectedMessage)` (from `i07`).
-- Makes `Reaction` `Identifiable` with the backend-provided reaction id.
-- On Android, uses `rememberSaveable` for the picker open-state.
-- On the dashboard, puts the reactions list in a client component with `'use client'`. Timestamp formatting is in a nested `<TimeAgo>` with `useEffect` (applying the DL-001 rule).
-- On the backend, adds the idempotency-key middleware and a `(message_id, user_id, emoji)` unique index on `reactions` to dedupe at the DB level too.
+# Semantic tags for the domain
+$ grep -niE "#Compose|#SwiftUI|#React|#Hydration" DEBUG_LOG.md
+DL-001: #web #React #NextJS #Hydration #SSR
+DL-003: #ios #SwiftUI #UI #Rendering
+DL-008: [OBSOLETE] supersedes DL-001 — hydration rule now applies only to client components
 
-## Turn 6 — LLM hits a bug
+# Patterns our feature hits: list diffing, idempotent mutations, offline
+$ grep -niE "List.*identity|#Idempotency|#Offline|#Retry" DEBUG_LOG.md
+DL-003: SwiftUI list identity on refetch (stable id from server, not client UUID)
+DL-004: #cross-cutting #Idempotency — mutating requests need Idempotency-Key + server dedup
 
-While testing on Android, the LLM sees:
-
-> `IllegalStateException: LazyColumn recomposition loop` when the reactions list updates via websocket.
-
-This is a bug. Per the skill, the LLM must log it.
-
-## Turn 7 — LLM diagnoses
-
-The LLM reads [`android.md#a02`](../references/android.md#a02) (recomposition loop from unstable state reads). The cause: the websocket handler was producing a new `List<Reaction>` on every event, which the `LazyColumn` diffed; the items were keyed by object identity not stable id.
-
-## Turn 8 — LLM fixes and logs
-
-Fix: items keyed by `reaction.id` explicitly in `LazyColumn`:
-```kotlin
-items(reactions, key = { it.id }) { reaction -> … }
+# Root Cause Categories that have bitten this codebase
+$ grep -niE "Race Condition|Scope Leak" DEBUG_LOG.md
+DL-004 (Race), DL-005 (Race, test-only), DL-006 (Scope Leak)
 ```
 
-LLM appends DL-007 to the log:
+**Four entries are directly relevant:**
+
+- **DL-003** (ios, list identity) — reactions mutate a message row; the row's identity must survive that.
+- **DL-004** (cross-cutting, idempotency) — reacting is a mutating request. Double-tap or retry must not produce two reactions.
+- **DL-006** (kotlin/android, scope leak) — the reaction sheet opens and closes; any in-flight coroutine must not outlive it.
+- **DL-008** (web, RSC hydration) — the message list is an RSC; the reaction bar must be a Client Component since it has interactivity and local state.
+
+### 4. Plan
+
+**Goal:** a user can tap a reaction affordance on a message and see their reaction appear grouped with others. Offline-friendly, idempotent, consistent across web / iOS / Android.
+
+**Files touched:**
+- `apps/web/components/MessageRow.tsx` (RSC) → extract a new `ReactionBar.tsx` (client component)
+- `apps/web/components/ReactionBar.tsx` *(new)*
+- `apps/web/app/api/reactions/route.ts` *(new)* — POST with `Idempotency-Key`
+- `apps/ios/Shared/Views/MessageRow.swift` — add reaction bar
+- `apps/ios/Shared/Views/ReactionSheet.swift` *(new)*
+- `apps/ios/Shared/Services/ReactionClient.swift` *(new)* — sends `Idempotency-Key`
+- `apps/android/.../MessageRow.kt` — reaction bar composable
+- `apps/android/.../ReactionSheet.kt` *(new)*
+- `apps/android/.../ReactionRepository.kt` *(new)*
+- `backend/handlers/reactions.go` *(new)* — idempotent write
+
+**Interfaces preserved:** message schema (no breaking changes), existing read paths, existing auth middleware.
+
+**Applicable prevention rules** (from grep):
+
+- DL-003: use the server's `message.id` (String) as the list key, not a client UUID. I'll add assertions in tests.
+- DL-004: client sends an `Idempotency-Key: <uuid>` header per reaction tap. Server dedupes by (user_id, message_id, emoji, key) in Redis with 24h TTL. Retries reuse the key.
+- DL-006: no `GlobalScope`. Reaction requests run on the app-level `ApplicationScope` when triggered, with result delivered via `SharedFlow`. Sheet dismissal drops the collector; request continues. On iOS, equivalent is a `Task { }` on an actor scoped to the app, not the view.
+- DL-008: the reaction bar is a Client Component (`"use client"`). Message list stays a Server Component. No `Date.now()` in the server component; if we show "just now" indicators, they're inside the client ReactionBar.
+
+**Verification:**
+- Unit: `ReactionRepository` emits the same server key on double-tap within 2s (iOS + Android).
+- Playwright: two rapid clicks produce one reaction in the DB.
+- Manual: toggle airplane mode mid-tap; confirm the reaction is queued and applied when online.
+- Log: server logs `reaction.created` vs `reaction.deduped` — during soak, ratio should stabilise near the expected retry rate.
+
+Ready to code. Starting with the backend endpoint since the client contracts flow from it.
+
+**User:** Go.
+
+*Claude implements. After the backend is done and during iOS work, a test failure surfaces.*
+
+**Claude:**
+Three iterations in, the iOS unit test `ReactionRepositoryTests.doubleTap_producesSingleReaction` is still flaky. Running it 20 times — fails 3. Let me pre-flight again before changing more code.
+
+```bash
+$ grep -niE "FlakyTest|TestInfrastructure|#XCTest" DEBUG_LOG.md
+DL-005: #web Playwright navigation race — "rely on the next assertion will retry" was the mistake
+
+$ grep -niE "Race Condition" DEBUG_LOG.md
+DL-004, DL-005
+```
+
+DL-005 flags a class I think I'm in: I'm asserting on a post-condition before its precondition has settled. In the iOS test, I'm checking that `repository.pendingCount == 0` right after firing two `react()` calls back-to-back — but both go through an actor, and the assertion runs before the second call has even reached the actor's queue.
+
+Fix: await both calls explicitly, then assert.
+
+*Fix lands. Tests green on 100 runs.*
+
+---
+
+**User:** All good. Time to log this.
+
+**Claude:**
+Appending DL-009. Iteration count 3 — not catastrophic, but above "first try" so I'll note the wrong assumption I kept making.
 
 ```markdown
-### DL-007 — Compose LazyColumn recomposition loop with websocket updates
+### DL-009 — Actor-dispatched test assertions raced before work landed
 
 | Field | Value |
 |-------|-------|
-| **Date** | 2026-04-20 |
-| **Severity** | Logic Bug |
-| **Track** | android |
-| **File(s)** | `android/chat/MessageItem.kt` |
-| **Symptom** | `IllegalStateException: LazyColumn recomposition loop` when reactions updated via websocket. CPU spiked to 100% while loop was running. |
-| **Root Cause** | `LazyColumn(items = reactions)` used positional keys by default. Every websocket event produced a new list (via `copy()`), and positional diffing treated every item as new, producing cascading recomposition. |
-| **Fix** | Pass `key = { it.id }` explicitly to `items(...)`. Commit `[hash]`. |
-| **Prevention Rule** | Every `LazyColumn` / `LazyRow` over a list that can update from a stream uses `key = { stableId(it) }` explicitly. Why: positional keying + stream updates produce silent recomposition loops (DL-007). |
+| **Date** | 2026-04-21 |
+| **Tags** | `#ios #swift #Test #FlakyTest #AsyncAwait` |
+| **Severity** | Flaky Test |
+| **Environment** | iOS 17.4, Swift 5.10, Xcode 15.3, XCTest |
+| **File(s)** | `apps/ios/Tests/ReactionRepositoryTests.swift` |
+| **Symptom** | `doubleTap_producesSingleReaction` failed ~3 in 20 runs with `XCTAssertEqual failed: 1 != 0`. |
+| **Root Cause Category** | Race Condition |
+| **Root Cause Context** | The test fired two `await repository.react(...)` calls, then asserted on a private `pendingCount` property of the repository's actor. Because `pendingCount` was read on a separate task without awaiting the work to land, the assertion occasionally observed the state before the second call had enqueued. I kept re-reading the assertion as if it were synchronous — it wasn't, because the repository's internal work dispatches off the actor. Took me three iterations to stop treating "await react()" as "react() has committed all its effects." |
+| **Fix** | Collected both operations into `async let a = ...; async let b = ...; _ = await (a, b)`, then awaited a quiescence flush on the actor (`await repository.flushPending()`), then asserted. Commit `9ae421d`. |
+| **Iterations** | 3 |
+| **Prevention Rule** | In tests that assert on actor-internal state, await a public quiescence point on the actor (e.g., a `flushPending()` sentinel that returns once the internal queue is empty) before the assertion. Never assert on actor state directly after firing async work — the work has been submitted, not completed. **Why:** actor methods commit effects on their own serial queue; the caller returning does not mean the effect is durable (DL-009). |
 ```
 
-## Turn 9 — LLM updates the plan
-
-The LLM notes the learning in the session summary and, if this is the third instance of a similar "stable key" rule, promotes it to `PREVENTION_RULES.md` as `R-00N — Every streaming list uses explicit, stable keys`.
+*Entry committed in the same commit as the test fix. The next time someone writes an actor test, DL-009 surfaces via `grep -niE "#FlakyTest|actor"`.*
 
 ---
 
-## What the skill bought here
+## What the transcript demonstrates
 
-- **Avoided re-shipping DL-004.** The emoji-react endpoint had idempotency by design. Without the log, the LLM might have skipped it and re-created the double-charge-style bug.
-- **Avoided stale timestamps.** The dashboard timestamp formatting was client-only from the first draft.
-- **Caught a new bug (DL-007) and recorded it.** The *next* time any feature uses `LazyColumn` over a streaming list, the LLM (or a human) will find the prevention rule and write the code right the first time.
-
-The `DEBUG_LOG.md` just got ~5% more valuable for every future feature. That's the compounding.
+1. **The active pre-flight is cheap and directional.** Four targeted greps returned four relevant entries in seconds — without loading the whole log into context. Two new entries (DL-008, superseding DL-001) flowed in automatically via cross-reference.
+2. **Tags compose with category.** `#Hydration` narrowed to the web component model; `Root Cause Category = Race Condition` surfaced across three tracks and made the pattern visible.
+3. **Iteration counting flags hallucination.** When the agent's count went past 2 on the iOS test, the prompt to "pre-flight again before changing more code" is what caught the actor assumption before a fourth wrong attempt.
+4. **The log stays append-only even as architecture changes.** DL-001 is `[OBSOLETE]`, not deleted; DL-008 records *why* it retired, so a contributor reading the history can understand both the old rule and its current form.
+5. **The prevention rule of DL-009 is the whole point.** The next time anyone — human or agent — writes a test that touches actor state, the rule is in the grep radius. The bug does not ship twice.

@@ -15,9 +15,9 @@ Pick the one matching your tool, copy it into your project at the indicated path
 All three do the same four things:
 
 1. Point the LLM at the `debug-log-skill` folder (SKILL.md + references).
-2. Enforce the four non-negotiable rules (sequence / never skip / read before coding / append-only).
+2. Enforce the four non-negotiable rules (sequence / never skip / active pre-flight / append-only).
 3. Make the pre-mortem workflow the default approach for new work.
-4. Require a DL entry on every bug fix in the same commit.
+4. Require a DL entry on every bug fix in the same commit, using the v2.0 template (Tags, Environment, Root Cause Category, Iterations).
 
 They differ only in format — each tool has its own frontmatter / file-naming convention.
 

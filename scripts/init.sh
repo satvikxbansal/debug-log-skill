@@ -76,11 +76,13 @@ copy_if_absent "$PREVENTION_SRC" "$PREVENTION_DST" "PREVENTION_RULES.md"
 if [[ -f "$CLAUDE_DST" ]]; then
   echo "  skip  CLAUDE.md — already exists. Append these lines manually:"
   echo ""
-  echo "    ## DEBUG_LOG discipline"
+  echo "    ## DEBUG_LOG discipline (v2.0)"
   echo "    This project follows the debug-log-skill protocol."
-  echo "    - Read DEBUG_LOG.md before starting any non-trivial task."
-  echo "    - After fixing any bug, append a numbered entry to DEBUG_LOG.md."
-  echo "    - Rules that repeat across DEBUG_LOG entries are promoted to PREVENTION_RULES.md."
+  echo "    - Active pre-flight: before editing, grep DEBUG_LOG.md by file/tag/Root Cause Category."
+  echo "    - After any bug fix, append a DL-NNN entry in the same commit, using the v2.0 template"
+  echo "      (Tags, Environment, Root Cause Category, Iterations, Prevention Rule)."
+  echo "    - Retired rules get [OBSOLETE] prepended to the title; supersede with a new entry."
+  echo "    - Rules that fire in 3+ active entries get promoted to PREVENTION_RULES.md."
   echo "    See: https://github.com/<you>/debug-log-skill"
   echo ""
   skipped=$((skipped + 1))
@@ -90,23 +92,38 @@ else
 
 Project-level instructions for Claude / Claude Code.
 
-## DEBUG_LOG discipline
+## DEBUG_LOG discipline (v2.0)
 
-This project follows the [debug-log-skill](https://github.com/<you>/debug-log-skill) protocol.
+This project follows the [debug-log-skill](https://github.com/<you>/debug-log-skill) protocol v2.0.
 
-### Non-negotiable rules
+### The four non-negotiable rules
 
-1. **Read before coding.** At the start of any non-trivial task, skim `DEBUG_LOG.md` and name the prevention rules that apply in your plan.
-2. **Append on every fix.** Every bug fix — build error, runtime crash, logic bug, flaky test, perf regression — gets a numbered `DL-NNN` entry in `DEBUG_LOG.md`.
-3. **Sequence.** Entries are numbered sequentially and never reused.
-4. **Append-only.** Never delete or modify an existing entry. Supersede with a new one that cross-references.
+1. **Sequence.** Entries are numbered `DL-001`, `DL-002`, `DL-003`, … Never skip, never reuse.
+2. **Never skip.** Every bug fix — build error, runtime crash, logic bug, flaky test, perf regression, incident — gets a `DL-NNN` entry in `DEBUG_LOG.md`, in the same commit as the fix.
+3. **Active pre-flight, not passive skim.** Before editing any file, grep `DEBUG_LOG.md` for the filename, relevant tag, or Root Cause Category. Read only the entries that match.
+4. **Append-only.** Never delete or edit an existing entry. When one becomes obsolete, prepend `[OBSOLETE]` to its title (the only permitted mutation) and supersede with a new entry.
+
+### Active pre-flight — grep patterns
+
+Run at least one before editing:
+
+```bash
+# By file path (strongest signal)
+grep -niE "path/to/File\.ext" DEBUG_LOG.md
+
+# By tag (see tag-taxonomy.md in the skill)
+grep -niE "#Compose|#StateFlow|#Hydration" DEBUG_LOG.md
+
+# By Root Cause Category
+grep -niE "Race Condition|Scope Leak|LLM Hallucination" DEBUG_LOG.md
+```
 
 ### Where things live
 
-- `DEBUG_LOG.md` — the full log. Append-only.
-- `PREVENTION_RULES.md` — promoted rules (a rule that fires ≥ 3 times in `DEBUG_LOG.md`).
+- `DEBUG_LOG.md` — the append-only log, numbered `DL-NNN`.
+- `PREVENTION_RULES.md` — promoted rules (any rule appearing in ≥ 3 active entries).
 
-### Entry template
+### Entry template (v2.0)
 
 ```markdown
 ### DL-XXX — [Short Title]
@@ -114,13 +131,16 @@ This project follows the [debug-log-skill](https://github.com/<you>/debug-log-sk
 | Field | Value |
 |-------|-------|
 | **Date** | YYYY-MM-DD |
+| **Tags** | `#track-tag #semantic-tag [#more]` — at least one track tag + one semantic tag |
 | **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident |
-| **Track** | web / ios / android / macos / kotlin / swift / cross-cutting |
+| **Environment** | Relevant SDK / library / OS versions |
 | **File(s)** | `path/to/file.ext` |
-| **Symptom** | What failed. Quote the error message. |
-| **Root Cause** | Why. 1–3 sentences. Name the misconception. |
-| **Fix** | What was changed. Commit SHA if available. |
-| **Prevention Rule** | Imperative, specific, checkable. Ends with **Why:** one-liner. |
+| **Symptom** | What failed. Quote the error. |
+| **Root Cause Category** | API Change / API Deprecation / Race Condition / Scope Leak / Main Thread Block / Hydration Mismatch / Null or Unchecked Access / Type Coercion / Off-By-One / Syntax Error / Config or Build / Test Infrastructure / LLM Hallucination or Assumption / Other |
+| **Root Cause Context** | Why. 1–3 sentences. Name the misconception. |
+| **Fix** | What changed. Commit SHA if available. |
+| **Iterations** | Integer. `0` = first try. `5+` = investigate the loop. |
+| **Prevention Rule** | Imperative, specific, checkable. **Why:** one-liner. |
 ```
 EOF
   echo "  wrote CLAUDE.md -> $CLAUDE_DST"

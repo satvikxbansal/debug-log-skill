@@ -10,6 +10,7 @@ In rough order of impact:
 2. **A new track** — e.g., Rust, Go, Flutter, React Native, Unity. Follow the shape of existing `references/*.md`.
 3. **A tighter prevention rule** on an existing entry — the rule is the output that matters; sharpening one benefits every future adopter.
 4. **A new worked example** — an annotated `DEBUG_LOG.md` excerpt from a real project (anonymised).
+5. **Tag taxonomy extensions** in `references/tag-taxonomy.md` — if a commonly-recurring pattern has no tag, add one. Come with two DL entries where you'd use it.
 
 ## Format for a new reference entry
 
@@ -28,6 +29,40 @@ Every entry in `references/<track>.md` follows the same four-field shape. Copy t
 ```
 
 **Numbering.** Use the track's prefix: `w` for web, `i` for iOS, `a` for Android, `m` for macOS, `k` for Kotlin, `s` for Swift, `x` for cross-cutting. Example: `a33` for the 33rd Android entry. Add the entry to the table of contents at the top of the file in number order.
+
+## Format for a project `DEBUG_LOG.md` entry (v2.0)
+
+This is what the skill tells end users to write in their own projects. If you're submitting an example log or a new walkthrough, match this shape:
+
+```markdown
+### DL-XXX — [Short Title]
+
+| Field | Value |
+|-------|-------|
+| **Date** | YYYY-MM-DD |
+| **Tags** | `#track-tag #semantic-tag [#more]` (at least one track tag + one semantic tag; see references/tag-taxonomy.md) |
+| **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident |
+| **Environment** | Relevant SDK / library / OS versions |
+| **File(s)** | `path/to/file.ext` |
+| **Symptom** | What failed. Quote the error. |
+| **Root Cause Category** | One of the 14 canonical categories (see below) |
+| **Root Cause Context** | Why. 1–3 sentences. Name the misconception. |
+| **Fix** | What changed. Commit SHA if available. |
+| **Iterations** | Integer. `0` = first try. `5+` = investigate the loop. |
+| **Prevention Rule** | Imperative, specific, checkable. **Why:** one-liner. |
+```
+
+### The 14 canonical Root Cause Categories
+
+`API Change` · `API Deprecation` · `Race Condition` · `Scope Leak` · `Main Thread Block` · `Hydration Mismatch` · `Null or Unchecked Access` · `Type Coercion` · `Off-By-One` · `Syntax Error` · `Config or Build` · `Test Infrastructure` · `LLM Hallucination or Assumption` · `Other`
+
+Full definitions with examples: `references/tag-taxonomy.md`.
+
+### The tag rules
+
+- At least one **track tag** from `#web #ios #android #macos #kotlin #swift #cross-cutting`.
+- At least one **semantic tag** from `references/tag-taxonomy.md`.
+- Inventing a new tag? Add it to the taxonomy file **in the same commit**.
 
 ## What a *good* entry looks like
 
@@ -50,8 +85,10 @@ If the weak version is what comes out of your first draft, do one more pass.
 A PR will be merged if:
 
 - The bug is real (you shipped and fixed it, or have strong evidence from someone who did).
-- The four fields are present and cleanly separated.
+- The required fields are present and cleanly separated.
 - The prevention rule passes the "specific / checkable / imperative / carries why" test.
+- Tags include at least one track + one semantic tag from the taxonomy.
+- Root Cause Category is one of the 14 canonical values (or `Other` with a category name in the Root Cause Context).
 - The entry is added to the track file's table of contents in number order.
 - The writing is professional without being florid. This is technical documentation, not a blog post.
 
@@ -60,6 +97,7 @@ A PR will be rejected (with thanks) if:
 - The bug is speculative ("I read in a blog post that…").
 - The prevention rule is generic or hand-wavy.
 - The entry duplicates an existing one without sharpening it.
+- Tags use a made-up vocabulary that doesn't align with the taxonomy.
 
 ## New track
 
@@ -68,8 +106,10 @@ If you're adding a whole new track (say, Rust):
 1. Create `references/rust.md` following the structure of `references/web.md`.
 2. Update `SKILL.md`'s track list and reference list.
 3. Update `README.md`'s track table.
-4. Add track-specific questions to `references/preempt-checklist.md`.
-5. Add a `templates/PREVENTION_RULES.rust.template.md` empty skeleton.
+4. Add `#rust` to the track tags in `references/tag-taxonomy.md` and add semantic tags relevant to Rust (e.g., `#Ownership`, `#Lifetime`, `#Cargo`, `#Tokio`).
+5. Add track-specific questions to `references/preempt-checklist.md`.
+6. Add a `templates/PREVENTION_RULES.rust.template.md` empty skeleton.
+7. Update `github-actions/validate_debug_log.py`'s `VALID_TRACK_TAGS` set to include the new tag.
 
 Aim for 15–25 entries to start. You can grow from there.
 

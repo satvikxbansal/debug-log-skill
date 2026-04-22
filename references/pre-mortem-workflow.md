@@ -29,7 +29,7 @@ Write one paragraph covering:
 
 If you cannot write this paragraph cleanly, stop. The spec is not ready. Any code you write now will be rework.
 
-### Phase 2 — Identify the track(s) and load the catalog
+### Phase 2 — Identify the track(s), load the catalog, and run the active pre-flight
 
 For each track the feature touches (web, ios, android, macos, kotlin, swift, cross-cutting), open `references/<track>.md` and skim the section titles. Read in full any entry whose name touches the feature area. For example:
 
@@ -37,7 +37,22 @@ For each track the feature touches (web, ios, android, macos, kotlin, swift, cro
 - Touching network? Read the cross-cutting "HTTP retries", "Idempotency", and "Timeout stacking" entries.
 - Adding a form? Read the "Uncontrolled / controlled" (web) or "TextField focus" (iOS) entries.
 
-You are looking for the entries whose *prevention rule* would apply if this feature existed in the form you're imagining. Flag them.
+Then run the **active pre-flight** on the project's own `DEBUG_LOG.md` — do not read the log end-to-end. Grep for the files, tags, or Root Cause Categories this feature is likely to touch:
+
+```bash
+# By file path (strongest signal)
+grep -niE "MessageRow|ReactionBar|Thread\.tsx" DEBUG_LOG.md
+
+# By tag (see references/tag-taxonomy.md)
+grep -niE "#Optimistic|#Idempotency|#RateLimit|#Compose|#LazyColumn" DEBUG_LOG.md
+
+# By Root Cause Category
+grep -niE "Race Condition|Hydration Mismatch|LLM Hallucination" DEBUG_LOG.md
+```
+
+Record the DL numbers that come back plus any entries they cross-reference (`Supersedes DL-XXX` / `See DL-XXX`). Those are the project-specific prevention rules you must honour on top of the generic catalog rules.
+
+You are looking for the entries — from both the reference catalogs and the pre-flight grep hits — whose *prevention rule* would apply if this feature existed in the form you're imagining. Flag them.
 
 ### Phase 3 — Work the preempt checklist
 
@@ -57,7 +72,7 @@ A one-page plan that names:
 1. **Goal** — the one-paragraph behaviour from Phase 1.
 2. **Files touched** — ideally no more than 5 files changed + 2 files added. If more, is the feature really one piece of work?
 3. **Interfaces preserved** — the public contracts you will not change. Naming them proves you understand the blast radius.
-4. **Applicable prevention rules** — from `DEBUG_LOG.md` and the reference catalogs. Each one quoted, with a one-line note on how it applies here.
+4. **Applicable prevention rules** — the DL numbers your Phase-2 pre-flight grep surfaced, plus any rules from the reference catalogs. Each quoted, with a one-line note on how it applies here. If zero pre-flight hits came back and the feature is non-trivial, say so explicitly — that's a signal to widen the grep before proceeding.
 5. **Unknowns** — any Phase-3 answer that was "not sure" or needs verification. For each, a note on how you will resolve it *before* writing the code that depends on it.
 6. **Verification** — how you will know the feature works. Ideally: an automated test, a manual check, and a log line that fires on the happy path.
 
@@ -96,7 +111,16 @@ Phase 1 — framing:
 
 > From the message row (mobile + web), the user taps a reaction affordance and picks an emoji. The emoji appears next to the message, grouped with any other users who reacted the same way. The feature works offline (queues, retries), works for anon users with rate limits, and is observable in analytics.
 
-Phase 2 — tracks: web, ios, android, cross-cutting.
+Phase 2 — tracks: web, ios, android, cross-cutting. Active pre-flight grep on DEBUG_LOG.md:
+
+```bash
+grep -niE "MessageRow|Thread\.tsx|ReactionBar" DEBUG_LOG.md
+# → DL-003 (LazyColumn recomposition on unkeyed rows)
+grep -niE "#Optimistic|#Idempotency|#RateLimit" DEBUG_LOG.md
+# → DL-004 (optimistic-update rollback on 429), DL-006 (double-tap dedupe)
+```
+
+Three DL numbers flagged before a line of code is written.
 
 Phase 3 — a selection of the questions that matter here:
 
