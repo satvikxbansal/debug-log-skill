@@ -130,16 +130,21 @@ def test_query_filter_by_category() -> tuple[bool, str]:
 
 
 def test_query_tag_and_severity_compose() -> tuple[bool, str]:
-    # Two filters should AND: #web AND Logic Bug.
+    # Two filters should AND: --tag #android AND --severity "Logic Bug".
+    # DL-003 is Logic Bug but #ios; DL-006 is Logic Bug AND #android. AND
+    # semantics should narrow to DL-006 only.
     r = _run_dls(
         "query", "--log", str(EXAMPLE_LOG),
-        "--tag", "#web", "--severity", "Logic Bug",
+        "--tag", "#android", "--severity", "Logic Bug",
     )
     if r.exit_code != 0:
         return False, f"query compose exit {r.exit_code}: {r.stderr}"
-    # DL-007 (web + Logic Bug LLM hallucination) is the expected hit.
-    if "DL-007" not in r.stdout:
-        return False, f"query --tag --severity missed DL-007: {r.stdout!r}"
+    if "DL-006" not in r.stdout:
+        return False, f"query --tag --severity missed DL-006: {r.stdout!r}"
+    if "DL-003" in r.stdout:
+        return False, (
+            f"query did NOT narrow — DL-003 (#ios) leaked in: {r.stdout!r}"
+        )
     return True, "query composes filters with AND semantics"
 
 
@@ -231,22 +236,26 @@ def test_stub_write_appends_valid_entry() -> tuple[bool, str]:
         if r.exit_code != 0:
             return False, f"stub --write exit {r.exit_code}: {r.stderr}"
 
-        # The stub has TODOs, so the validator SHOULD fail on this file —
-        # specifically for the Prevention Rule length (TODO placeholders
-        # are short). That's the expected signal the human still has work
-        # to do.
+        # A TODO-laden stub MUST fail the validator. This is the core
+        # invariant: validator-clean fake entries are worse than no
+        # entries because they create the illusion of rigor. The
+        # placeholder-sentinel check is what enforces this.
         v = _run_validator(tmp_path)
         if v.exit_code == 0:
             return False, (
-                "validator passed a TODO-laden stub entry — the TODO "
-                "markers in Prevention Rule should trip the rule-length "
-                "check. Stdout: " + v.stdout
+                "CRITICAL: validator passed a TODO-laden stub entry. A "
+                "scaffolded entry with placeholder sentinels must NOT "
+                "pass lint. Stdout: " + v.stdout
             )
-        # Confirm the new entry was appended.
+        if "placeholder sentinel" not in v.stderr:
+            return False, (
+                "validator rejected stub but error message doesn't "
+                "mention the placeholder sentinel: " + v.stderr
+            )
         text = tmp_path.read_text(encoding="utf-8")
         if "### DL-009 — Test stub for write" not in text:
             return False, "appended entry not found in file"
-    return True, "stub --write appends entry; validator flags TODO stub"
+    return True, "stub --write fails lint until TODOs are filled in"
 
 
 def test_supersede_dryrun_shows_both_sides() -> tuple[bool, str]:

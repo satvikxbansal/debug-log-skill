@@ -1,14 +1,15 @@
 # github-actions
 
-CI helpers for projects using the debug-log-skill. v2.0 (active knowledge graph).
+CI helpers for projects using the debug-log-skill. v2.1 (active knowledge graph + placeholder-sentinel guard).
 
 ## Files
 
 | File | Purpose |
 |---|---|
 | `validate-debug-log.yml` | GitHub Actions workflow that runs `validate_debug_log.py` on `DEBUG_LOG.md` changes. |
-| `validate_debug_log.py` | Python script that parses `DEBUG_LOG.md` and checks the v2.0 contract. Imports from `debug_log_schema.py`. |
-| `../scripts/debug_log_schema.py` | Single source of truth for the v2.0 vocabulary (required fields, severities, Root Cause Categories, track tags, semantic-tag taxonomy). The validator and the test fixtures both import this file. |
+| `validate_debug_log.py` | Python script that parses `DEBUG_LOG.md` and checks the v2.0 contract (plus v2.1 placeholder-sentinel rejection). Imports from `debug_log_schema.py` AND `debug_log_parser.py`. |
+| `../scripts/debug_log_schema.py` | Single source of truth for the vocabulary (required fields, severities, Root Cause Categories, track tags, semantic-tag taxonomy, placeholder sentinels). The validator, the parser, the `dls` CLI, and the test fixtures all import this file. |
+| `../scripts/debug_log_parser.py` | Shared entry-parsing module used by the validator and the `dls` CLI. Imports the schema; extracted so the validator and the CLI cannot drift on how entries are tokenised. |
 
 ## Install in your project
 
@@ -18,14 +19,16 @@ mkdir -p .github/workflows .github/scripts
 cp path/to/debug-log-skill/github-actions/validate-debug-log.yml .github/workflows/
 cp path/to/debug-log-skill/github-actions/validate_debug_log.py   .github/scripts/
 cp path/to/debug-log-skill/scripts/debug_log_schema.py            .github/scripts/
+cp path/to/debug-log-skill/scripts/debug_log_parser.py            .github/scripts/
 chmod +x .github/scripts/validate_debug_log.py
 git add .github/workflows/validate-debug-log.yml \
         .github/scripts/validate_debug_log.py \
-        .github/scripts/debug_log_schema.py
-git commit -m "Add DEBUG_LOG v2.0 validation workflow"
+        .github/scripts/debug_log_schema.py \
+        .github/scripts/debug_log_parser.py
+git commit -m "Add DEBUG_LOG v2.1 validation workflow"
 ```
 
-Both Python files must land side-by-side in `.github/scripts/` — the validator imports the schema at startup.
+All three Python files must land side-by-side in `.github/scripts/` — the validator imports the schema and the parser at startup. Any missing file raises `ModuleNotFoundError` and breaks CI before the first entry is checked.
 
 The next PR that touches `DEBUG_LOG.md` (or either script) will trigger the check.
 
@@ -43,6 +46,8 @@ The next PR that touches `DEBUG_LOG.md` (or either script) will trigger the chec
 - **`[OBSOLETE]` / supersede discipline (both directions).**
   - If an entry's title starts with `[OBSOLETE]`, at least one **later** entry's body must contain `Supersedes DL-XXX` pointing back — orphaned tombstones fail.
   - If any entry's body contains `Supersedes DL-XXX`, the referenced entry must exist **and** its title must start with `[OBSOLETE]` — dangling or mis-targeted references fail.
+- **Placeholder-sentinel rejection (v2.1).** Active entries are rejected if any required narrative field (`Environment`, `File(s)`, `Symptom`, `Root Cause Context`, `Fix`, `Prevention Rule`) still contains `TODO:`, `FIXME:`, `XXX:`, or `PLACEHOLDER`. This closes the "`dls stub --write` commits scaffolding that passes lint" gap — a validator-clean fake entry is worse than no entry, because it creates the illusion of rigor. `[OBSOLETE]` entries are exempt (their fields were authored under an earlier contract).
+- **Artifact link soft-check (v2.1).** If an entry has an optional `Artifact` field, the validator resolves the path relative to the log's repo. Missing paths fail — *except* the canonical `.debug-log/incidents/DL-NNN.md` sidecar, which is soft-allowed because the sidecar is usually authored in the same PR.
 
 ### `--strict` mode
 

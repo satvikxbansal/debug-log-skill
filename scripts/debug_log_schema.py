@@ -220,6 +220,49 @@ MIN_RULE_LEN: Final[int] = 40
 WHY_MARKERS: Final[tuple[str, ...]] = ("**Why:**", "Why:", "why:")
 
 # ----------------------------------------------------------------------------
+# Placeholder sentinels.
+#
+# The CLI (`dls stub`, `dls supersede`) scaffolds new entries with explicit
+# TODO markers so a human has to actually think through each field. Without
+# this list, a stub with a well-formatted-but-empty Prevention Rule
+# ("TODO: specific, checkable rule. **Why:** TODO: ...") passes every
+# mechanical check — long enough for MIN_RULE_LEN, contains the Why: marker,
+# taxonomy-valid tags — even though the entry carries no actual knowledge.
+#
+# The validator refuses ANY required narrative field that still carries one
+# of these sentinels in an active entry. [OBSOLETE] tombstones are exempt
+# (the tombstone itself is the signal; body fields can remain unchanged).
+# This check runs BEFORE the rule-length / Why-marker checks so the error
+# message points at the real problem.
+#
+# The sentinels are deliberately loud and unlikely to appear in real prose
+# ("TODO:" at the start of a clause, ALL CAPS). If a genuine entry needs
+# to reference the string "TODO:" (e.g., a bug about TODO-list parsing),
+# phrase it as "a TODO comment" or "a to-do item" — the uppercase-with-colon
+# form is the one we treat as a placeholder.
+# ----------------------------------------------------------------------------
+PLACEHOLDER_SENTINELS: Final[tuple[str, ...]] = (
+    "TODO:", "FIXME:", "XXX:", "PLACEHOLDER",
+)
+
+# Required fields where a sentinel means "the human hasn't filled this in
+# yet". Tags and Severity would be caught by vocabulary checks; Iterations
+# is numeric. The sentinel check targets the free-text narrative fields.
+SENTINEL_GUARDED_FIELDS: Final[frozenset[str]] = frozenset({
+    "Environment",
+    "File(s)",
+    "Symptom",
+    "Root Cause Context",
+    "Fix",
+    "Prevention Rule",
+})
+
+
+def contains_placeholder(value: str) -> bool:
+    """True if `value` still carries a scaffolded placeholder sentinel."""
+    return any(sentinel in value for sentinel in PLACEHOLDER_SENTINELS)
+
+# ----------------------------------------------------------------------------
 # Regex patterns.
 # ----------------------------------------------------------------------------
 # `### DL-NNN — Title` (em-dash or hyphen, 3+ digits, optional [OBSOLETE]).
@@ -309,6 +352,9 @@ __all__ = [
     "SEMANTIC_TAGS_TAXONOMY_LOWER",
     "MIN_RULE_LEN",
     "WHY_MARKERS",
+    "PLACEHOLDER_SENTINELS",
+    "SENTINEL_GUARDED_FIELDS",
+    "contains_placeholder",
     "ENTRY_HEADING_RE",
     "TABLE_ROW_RE",
     "TAG_RE",

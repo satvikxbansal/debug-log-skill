@@ -76,13 +76,16 @@ from debug_log_schema import (  # noqa: E402
     MIN_RULE_LEN,
     MIN_SEMANTIC_TAGS,
     MIN_TRACK_TAGS,
+    PLACEHOLDER_SENTINELS,
     REQUIRED_FIELDS_SET,
     SCHEMA_VERSION,
     SEMANTIC_TAGS_TAXONOMY_LOWER,
+    SENTINEL_GUARDED_FIELDS,
     VALID_ROOT_CAUSE_CATEGORIES,
     VALID_SEVERITIES,
     VALID_TRACK_TAGS,
     WHY_MARKERS,
+    contains_placeholder,
     strip_markdown,
 )
 from debug_log_parser import Entry, parse_entries  # noqa: E402
@@ -147,6 +150,23 @@ def validate_entry(
         problems.append(
             f"{prefix}: missing field(s): {', '.join(sorted(missing))}"
         )
+
+    # --- Placeholder sentinels (stub guard) ---
+    # Active entries must not carry `TODO:` / `FIXME:` / `XXX:` placeholders
+    # in their narrative fields. This catches `dls stub --write` output that
+    # was committed without the human actually filling in the entry — a
+    # class of "validator-clean fake entry" that would otherwise be
+    # indistinguishable from real knowledge.
+    if not entry.is_obsolete:
+        for fname in SENTINEL_GUARDED_FIELDS:
+            val = entry.fields.get(fname, "")
+            if contains_placeholder(val):
+                problems.append(
+                    f"{prefix}: {fname} still carries a placeholder "
+                    f"sentinel ({', '.join(PLACEHOLDER_SENTINELS)}). A "
+                    f"scaffolded entry is worse than no entry — fill this "
+                    f"field with the real content before committing."
+                )
 
     # --- Date ---
     if "Date" in entry.fields:

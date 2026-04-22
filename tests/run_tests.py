@@ -152,6 +152,15 @@ CASES: list[Case] = [
         # "Be careful." is neither specific nor checkable nor carries why.
         # The validator catches both the short length and the missing Why:.
     ),
+    Case(
+        fixture="placeholder_sentinel.md",
+        expected_exit=1,
+        expected_fragment="placeholder sentinel",
+        # A `dls stub --write` entry committed without being filled in is
+        # the canonical "validator-clean fake entry" case. The sentinel
+        # check must refuse it — a scaffolded entry masquerading as real
+        # knowledge is worse than no entry at all.
+    ),
 
     # --- strict mode -----------------------------------------------------
     Case(

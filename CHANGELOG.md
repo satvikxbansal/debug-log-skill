@@ -4,6 +4,39 @@ All notable changes to `debug-log-skill` are recorded here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Version numbers follow [SemVer](https://semver.org/).
 
+## [2.1.0] — 2026-04-22
+
+Integrity release. No schema changes (v2.0 logs continue to validate unchanged), but two failure modes seen in real use are now closed, and the repo gains a stdlib-only `dls` CLI so humans and agents stop hand-grepping `DEBUG_LOG.md` when they want a cross-cut.
+
+The headline behaviour change is that the CLI's `stub` output — which was convenient but ergonomically misleading — is no longer accepted by the validator. The old failure mode was: a `dls stub --write` entry could be committed without the narrative fields being filled in, and CI would pass because the scaffolding text (`TODO: specific, checkable rule. **Why:** TODO: …`) happened to satisfy the length + `Why:` marker checks. A validator-clean fake entry is strictly worse than no entry — it creates the illusion of rigor. v2.1 closes that gap.
+
+### Added
+
+- **`scripts/dls/` — zero-dep Python CLI package** with seven subcommands:
+  - `dls lint [--strict] [--log PATH]` — runs the validator (thin wrapper; same exit semantics).
+  - `dls stats [--log PATH]` — distributions across Root Cause Category / track tag / semantic tag / severity / iterations, with promotion-candidate hints (categories, tags, or files that recur across ≥ threshold entries).
+  - `dls query [--tag … | --category … | --severity … | --file … | --text …] [--include-obsolete] [--full]` — AND across flag kinds, OR within repeated flags. Obsolete entries are excluded by default.
+  - `dls relevant PATH [PATH …] [--full]` — "what past entries touch this file?" via substring + basename matching on each entry's `File(s)`. The first building block of the diff-aware retrieval in Phase 4.
+  - `dls doctor [--stale-days N] [--log PATH]` — health scan. Flags stale active entries (default: > 365 days with no superseder), missing Artifact links (errors for arbitrary paths, soft-warns the canonical incident sidecar), hallucination-loop entries without reflection vocabulary (`Iterations ≥ 5` + no "loop / retry / hallucin" in Root Cause Context), and promotion-backlog categories (≥ 3 active entries in the same category).
+  - `dls stub --title T [--tag … --severity … --environment … --file … --category … --number N] [--write]` — scaffolds the next DL entry with today's date and the correct DL number. Dry-run by default; `--write` appends to the log. Placeholder text is intentionally rejected by lint — see below.
+  - `dls supersede DL-NNN --title T [--tag … --severity … --file … --category … --number N] [--write]` — performs the two-sided tombstone handshake: prepends `[OBSOLETE]` to the target's title (only permitted mutation on an existing entry) and drafts the superseding entry with `Supersedes DL-NNN.` in the body.
+- **Placeholder-sentinel rejection in the validator.** `scripts/debug_log_schema.py` now exports `PLACEHOLDER_SENTINELS = ("TODO:", "FIXME:", "XXX:", "PLACEHOLDER")` and `SENTINEL_GUARDED_FIELDS = {Environment, File(s), Symptom, Root Cause Context, Fix, Prevention Rule}`. Active entries whose guarded fields still contain any sentinel are rejected with a specific error (obsolete entries are exempt — their fields were written under earlier contracts and should not be retroactively invalidated). Covered by `tests/fixtures/placeholder_sentinel.md` + a dedicated case in `run_tests.py`.
+- **`scripts/debug_log_parser.py`** — shared entry-parsing module. Exposes an `Entry` dataclass plus `parse_entries`, `parse_entries_from_path`, `parse_fields`, `parse_tags`, `parse_supersede_targets`, `next_entry_number`, `find_debug_log` (walks upward from CWD). Imports the schema. Both the validator and the `dls` CLI now parse through this module, so the two cannot drift on how an entry is tokenised.
+- **Optional `Artifact` field + `.debug-log/incidents/DL-NNN.md` sidecar convention (Phase 6 prep).** Entries may point at a saved reproduction, log dump, stack trace, or screenshot via an `Artifact` field. The canonical location is `.debug-log/incidents/DL-NNN.md` relative to the log. The validator resolves the path against the log's directory and fails on unresolved arbitrary paths, but soft-allows the canonical sidecar path when missing — the sidecar is usually authored in the same PR.
+- **`tests/test_dls.py`** — 19-case behavioural suite for the CLI, run via `python3 tests/test_dls.py`. Each subcommand is exercised end-to-end against a temporary repo. The stub-passes-lint invariant is covered by `test_stub_write_appends_valid_entry`, which explicitly asserts the validator exits non-zero with `placeholder sentinel` in stderr after `dls stub --write`.
+
+### Changed
+
+- **Consumer CI install path — breaking for anyone following v2.0.1 docs.** The validator now imports both the schema and the parser. Consumers must copy `debug_log_parser.py` alongside `validate_debug_log.py` and `debug_log_schema.py` into `.github/scripts/`. Missing any one raises `ModuleNotFoundError` at startup. `github-actions/README.md` and the `validate-debug-log.yml` workflow's header + paths trigger both updated.
+- **`github-actions/validate_debug_log.py`** — re-plumbed on top of `debug_log_parser`, so parsing, HTML-comment stripping, and `Entry` construction now come from the shared module. Behaviour is preserved for all v2.0.1 fixtures (confirmed by the existing suite passing unchanged). New checks added on top: placeholder-sentinel rejection; `Artifact` link resolution.
+- **`tests/run_tests.py`** — now runs 18 cases (up from 17) after adding the `placeholder_sentinel.md` fixture case.
+
+### Invariants preserved
+
+- Append-only log, with `[OBSOLETE]` title prefix as the only permitted mutation. `dls supersede --write` exists because this mutation is tedious to do by hand, not because the rule has relaxed.
+- Zero runtime dependencies. `dls` uses only the Python standard library; no `pip install` step is required for the skill or for consumers of the CI workflow.
+- Single source of truth for vocabulary. The schema module is still the only place where categories / severities / tags / field names are declared.
+
 ## [2.0.1] — 2026-04-22
 
 Hardening pass over the v2.0 contract. No template changes — all updates are under the hood. Existing v2.0 users do not need to re-author entries.
