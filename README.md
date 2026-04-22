@@ -31,7 +31,7 @@ v1 asked the agent to skim the whole log before every task. That breaks the mome
 - **`[OBSOLETE]` rule lifecycle.** When a rule stops applying (you upgraded Next.js, you replaced the old auth middleware), you don't delete the old entry. You tombstone it — prepend `[OBSOLETE]` to the title — and write a new entry that says "supersedes DL-031 because we migrated to X." Nothing is lost; the log stays honest.
 - **14 canonical root-cause categories.** A closed list: `API Change`, `Race Condition`, `Scope Leak`, `Hydration Mismatch`, `LLM Hallucination or Assumption`, and so on. Over time, counting categories tells you where to invest: "42% of our DL entries are Race Conditions" is a loud signal.
 
-The full reasoning behind each of these is in `CHANGELOG.md` under `[2.0.0]`.
+The full reasoning behind each of these is in `CHANGELOG.md` under `[2.0.0]`. What's planned for subsequent versions — a Python CLI (`dls`), evidence-capture sidecar files, expanded track coverage (Python / Go / Node backends, DB/SQL, Infra), and an optional MCP server for agents — is in [`ROADMAP.md`](ROADMAP.md).
 
 ## Install it as a Claude skill
 
@@ -136,7 +136,14 @@ Most LLM-coding guidance today falls into two camps: generic "think step by step
 
 ## CI
 
-`github-actions/validate_debug_log.py` validates every PR that touches `DEBUG_LOG.md`. It checks the sequence, the 11 required fields, the track-plus-semantic tag rule, the 14-category root-cause vocabulary, the `Iterations` integer, the `[OBSOLETE]` / supersede handshake, and the `**Why:**` marker on every prevention rule. On success it prints a one-line summary (`N entries (X active, Y obsolete), all valid.`) so you get a pulse on the log's shape in every PR. Details in `github-actions/README.md`.
+`github-actions/validate_debug_log.py` validates every PR that touches `DEBUG_LOG.md`. It checks the sequence, the 11 required fields, the 1–2 track tag rule and at-least-one semantic tag, the 14-category root-cause vocabulary, the `Iterations` integer, the **bidirectional** `[OBSOLETE]` / `Supersedes DL-NNN` handshake (orphan tombstones and dangling supersedes both fail), and the `**Why:**` marker on every prevention rule. HTML-commented example entries (like the one in the shipped template) are stripped before counting, so they never inflate the count. On success it prints a one-line summary (`N entries (X active, Y obsolete), all valid.`) so you get a pulse on the log's shape in every PR.
+
+Two modes are supported:
+
+- **Default** — accepts any `#SemanticTag` (the taxonomy is open; projects invent their own).
+- **`--strict`** — rejects semantic tags not listed in `references/tag-taxonomy.md`. Good once your project has settled on its vocabulary.
+
+The validator and the test suite share a single schema module (`scripts/debug_log_schema.py`) so the canonical vocabulary never drifts. A fixture-based test suite under `tests/` exercises 17 scenarios (13 fixtures, `strict_unknown_tag` runs twice) — run `python3 tests/run_tests.py` to verify. Details in `github-actions/README.md`.
 
 ## Why `DEBUG_LOG.md` and not a SaaS tool?
 
@@ -179,9 +186,14 @@ debug-log-skill/
 │   ├── README.md
 │   ├── validate-debug-log.yml        # CI workflow
 │   └── validate_debug_log.py         # Validator for the v2.0 schema
-└── scripts/
-    ├── init.sh                       # One-shot project initialiser
-    └── package-skill.sh              # Builds a clean .skill for Claude upload
+├── scripts/
+│   ├── debug_log_schema.py           # Single source of truth (imported by validator + tests)
+│   ├── init.sh                       # One-shot project initialiser
+│   └── package-skill.sh              # Builds a clean .skill for Claude upload
+├── tests/
+│   ├── run_tests.py                  # Fixture-based regression suite (17 cases)
+│   └── fixtures/                     # One failure mode per file, plus valid cases
+└── ROADMAP.md                        # What's planned for v2.1 → v3.0
 ```
 
 ## Contributing

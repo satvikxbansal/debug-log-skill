@@ -1,13 +1,14 @@
 # github-actions
 
-CI helpers for projects using the debug-log-skill. Upgraded for v2.0 (active knowledge graph).
+CI helpers for projects using the debug-log-skill. v2.0 (active knowledge graph).
 
 ## Files
 
 | File | Purpose |
 |---|---|
 | `validate-debug-log.yml` | GitHub Actions workflow that runs `validate_debug_log.py` on `DEBUG_LOG.md` changes. |
-| `validate_debug_log.py` | Python script that parses `DEBUG_LOG.md` and checks sequence, required fields, tag structure, Root Cause Category membership, Iterations integer, and Prevention Rule strength. |
+| `validate_debug_log.py` | Python script that parses `DEBUG_LOG.md` and checks the v2.0 contract. Imports from `debug_log_schema.py`. |
+| `../scripts/debug_log_schema.py` | Single source of truth for the v2.0 vocabulary (required fields, severities, Root Cause Categories, track tags, semantic-tag taxonomy). The validator and the test fixtures both import this file. |
 
 ## Install in your project
 
@@ -16,28 +17,46 @@ CI helpers for projects using the debug-log-skill. Upgraded for v2.0 (active kno
 mkdir -p .github/workflows .github/scripts
 cp path/to/debug-log-skill/github-actions/validate-debug-log.yml .github/workflows/
 cp path/to/debug-log-skill/github-actions/validate_debug_log.py   .github/scripts/
+cp path/to/debug-log-skill/scripts/debug_log_schema.py            .github/scripts/
 chmod +x .github/scripts/validate_debug_log.py
-git add .github/workflows/validate-debug-log.yml .github/scripts/validate_debug_log.py
+git add .github/workflows/validate-debug-log.yml \
+        .github/scripts/validate_debug_log.py \
+        .github/scripts/debug_log_schema.py
 git commit -m "Add DEBUG_LOG v2.0 validation workflow"
 ```
 
-The next PR that touches `DEBUG_LOG.md` will trigger the check.
+Both Python files must land side-by-side in `.github/scripts/` — the validator imports the schema at startup.
+
+The next PR that touches `DEBUG_LOG.md` (or either script) will trigger the check.
 
 ## What it catches (v2.0)
 
 - **Sequence.** Gaps or duplicates in the `DL-NNN` sequence. `[OBSOLETE]` entries still count — they hold their slot, they just don't participate in active rule retrieval.
-- **Required fields.** Every entry must carry: `Date`, `Tags`, `Severity`, `Environment`, `File(s)`, `Symptom`, `Root Cause Category`, `Root Cause Context`, `Fix`, `Iterations`, `Prevention Rule`.
-- **Date format.** Must be `YYYY-MM-DD`. The literal placeholder `YYYY-MM-DD` is tolerated only when surrounded by an HTML comment (used by the template).
-- **Severity vocabulary.** Must be one of: `Build Error`, `Runtime Crash`, `ANR`, `Logic Bug`, `Flaky Test`, `Warning-as-Error`, `Perf Regression`, `Incident`, `Informational`, `Runtime Warning`, `UX Regression`, `Security`.
-- **Tags.** Every entry needs **at least one track tag** (`#web #ios #android #macos #kotlin #swift #cross-cutting`) **and at least one semantic tag** (any `#Foo` beyond the track set). Tags that don't match the `#[A-Za-z][A-Za-z0-9_-]*` shape are flagged.
+- **HTML-commented entries are skipped.** The template ships with a commented DL-001 example; without this, a freshly-initialised log would report "2 entries" on its first run. The validator strips HTML comments before parsing.
+- **Required fields.** Every entry must carry all 11 v2.0 fields: `Date`, `Tags`, `Severity`, `Environment`, `File(s)`, `Symptom`, `Root Cause Category`, `Root Cause Context`, `Fix`, `Iterations`, `Prevention Rule`.
+- **Date format.** Must be `YYYY-MM-DD`. The literal placeholder `YYYY-MM-DD` is tolerated only on the seed entry.
+- **Severity vocabulary.** Must be one of the 8 core severities (`Build Error`, `Runtime Crash`, `ANR`, `Logic Bug`, `Flaky Test`, `Warning-as-Error`, `Perf Regression`, `Incident`) or one of the 4 extended ones (`Informational`, `Runtime Warning`, `UX Regression`, `Security`).
+- **Tags.** Every entry needs **1–2 track tags** (`#web #ios #android #macos #kotlin #swift #cross-cutting`) and **at least one semantic tag** beyond the track set. Track tags are deduplicated case-insensitively; three or more track tags fails. Tags that don't match the `#[A-Za-z][A-Za-z0-9_-]*` shape are flagged.
 - **Root Cause Category.** Must be one of the 14 canonical categories: `API Change`, `API Deprecation`, `Race Condition`, `Scope Leak`, `Main Thread Block`, `Hydration Mismatch`, `Null or Unchecked Access`, `Type Coercion`, `Off-By-One`, `Syntax Error`, `Config or Build`, `Test Infrastructure`, `LLM Hallucination or Assumption`, `Other`. Using `Other` is allowed but the script expects a noun-phrase category in the Root Cause Context so future entries can promote it.
-- **Iterations.** Must be a non-negative integer. `0` is first-try; `5+` in a non-`[OBSOLETE]` entry triggers a warning because it is almost always a signal of a deep hallucination loop or a missing piece of context.
-- **Prevention Rule strength.** For active (non-`[OBSOLETE]`) entries, the rule must contain the literal token `**Why:**` and be at least ~40 characters. `[OBSOLETE]` entries are exempt (their rule was retired by a newer entry, and the old rule may legitimately be short).
-- **`[OBSOLETE]` / supersede discipline.** When an entry's title starts with `[OBSOLETE]`, the validator expects that at least one later entry's body contains `Supersedes DL-XXX` pointing back — surfacing orphaned tombstones.
+- **Iterations.** Must be a non-negative integer. `0` is first-try. The script accepts `3 (actor race)` — anything starting with an integer.
+- **Prevention Rule strength.** For active (non-`[OBSOLETE]`) entries, the rule must contain a `Why:` marker (looks for `**Why:**`, `Why:`, or `why:`) and be at least 40 characters. `[OBSOLETE]` entries are exempt — their rule was retired by a newer entry, and the old rule may legitimately be short.
+- **`[OBSOLETE]` / supersede discipline (both directions).**
+  - If an entry's title starts with `[OBSOLETE]`, at least one **later** entry's body must contain `Supersedes DL-XXX` pointing back — orphaned tombstones fail.
+  - If any entry's body contains `Supersedes DL-XXX`, the referenced entry must exist **and** its title must start with `[OBSOLETE]` — dangling or mis-targeted references fail.
+
+### `--strict` mode
+
+```bash
+python3 .github/scripts/validate_debug_log.py --strict DEBUG_LOG.md
+```
+
+In strict mode, semantic tags must come from `references/tag-taxonomy.md`. This is useful once the project's taxonomy has stabilised — turn it on in CI when you're ready to say "new tags must be added to the taxonomy first." Default mode keeps the semantic-tag list open so first-time users aren't blocked by tag discipline.
 
 ### Summary counts
 
-At the end of a successful run the script prints `N entries (X active, Y obsolete), all valid.` so CI logs and the PR-check output give you a quick pulse on the log's shape.
+At the end of a successful run the script prints
+`DEBUG_LOG.md (v2.0): N entries (X active, Y obsolete), all valid.`
+so CI logs and the PR-check output give you a quick pulse on the log's shape.
 
 ## What it does NOT catch
 
@@ -47,18 +66,23 @@ At the end of a successful run the script prints `N entries (X active, Y obsolet
 
 ## Extending
 
-- Add a new **track** (e.g., Rust): append its tag (`#rust`) to `VALID_TRACK_TAGS` in `validate_debug_log.py` and ship a new `references/rust.md`.
-- Add a new **Severity** label: append to `VALID_SEVERITIES`.
-- Add a new **Root Cause Category**: append to `VALID_ROOT_CAUSE_CATEGORIES`. Do this rarely — the closed vocabulary is the *point* of the taxonomy, and adding a category without retiring an old one weakens the countable signal.
-- Require a commit SHA in the Fix field, or a `[spec-tests]` token for features that are test-gated, by extending `validate_entry()`.
+Because the schema is centralised in `scripts/debug_log_schema.py`, extending vocabularies is a one-file change:
+
+- **Add a new track** (e.g., Rust): append `#rust` to `TRACK_TAGS` in `debug_log_schema.py` and ship a new `references/rust.md`.
+- **Add a new severity**: append to `SEVERITIES_CORE` or `SEVERITIES_EXTENDED`. Bump the CHANGELOG.
+- **Add a new Root Cause Category**: append to `ROOT_CAUSE_CATEGORIES`. Do this rarely — the closed vocabulary is the *point* of the taxonomy, and adding a category without retiring an old one weakens the countable signal.
+- **Add a new semantic tag**: append to `SEMANTIC_TAGS_TAXONOMY` in the schema, and add it to the matching section of `references/tag-taxonomy.md` in the same commit.
+
+Each of these changes is picked up automatically by the validator, the fixture test suite, and the forthcoming CLI — no duplicate-constant hunt required.
 
 ## Running locally
 
 ```bash
 python3 github-actions/validate_debug_log.py DEBUG_LOG.md
+python3 github-actions/validate_debug_log.py --strict DEBUG_LOG.md
 ```
 
-Exit 0 = clean (prints the summary counts). Exit 1 = problems (printed to stderr). Exit 2 = script misuse (wrong number of args, unreadable file).
+Exit 0 = clean (prints the summary counts). Exit 1 = problems (printed to stderr). Exit 2 = script misuse (wrong number of args, unreadable file, missing schema module).
 
 ## Hooking it up as a pre-commit hook
 

@@ -16,9 +16,9 @@ A one-off tag that appears once in DL-017 and never again helps nobody. If you m
 
 ---
 
-## Track tags (required — pick at least one)
+## Track tags (required — pick 1 or 2)
 
-Every entry needs exactly one or two of these. They anchor the entry to a stack.
+Every entry needs **at least one** track tag and **at most two**. They anchor the entry to a stack. Use two only when the bug genuinely spans stacks (e.g., a Kotlin coroutine bug that surfaces on Android); reach for `#cross-cutting` when none of the specific tracks fits.
 
 | Tag | Applies to |
 |---|---|
@@ -81,6 +81,10 @@ These classify the *subject matter* of the bug. Use as many as genuinely apply; 
 ### Observability
 
 `#Logging` · `#Telemetry` · `#Crashlytics` · `#Analytics`
+
+### Agent & LLM
+
+`#LLM` · `#Agent` · `#Hallucination` · `#Grounding` · `#Prompt` · `#ToolUse`
 
 ---
 

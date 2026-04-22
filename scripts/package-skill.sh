@@ -54,44 +54,68 @@ trap 'rm -rf "$STAGE_DIR"' EXIT
 STAGED="$STAGE_DIR/$SKILL_NAME"
 mkdir -p "$STAGED"
 
-# rsync is the cleanest way to copy with excludes. `cp -r` doesn't honour
-# exclude lists portably.
+# --- Exclude list (shared between rsync and fallback branches) ---------
+# Patterns are kept in two parallel shapes:
+#   * rsync style (one per --exclude; trailing slash for directories)
+#   * find style (basenames for the pathwise prune; prefix-anchored
+#     top-level dirs handled separately below)
+#
+# Keeping both branches in sync is critical — drift here means a file
+# shows up in archives built on machines without rsync but not on CI
+# (or vice-versa).
+
+RSYNC_EXCLUDES=(
+  --exclude='.git/'
+  --exclude='.gitignore'
+  --exclude='.gitattributes'
+  --exclude='.DS_Store'
+  --exclude='Thumbs.db'
+  --exclude='.vscode/'
+  --exclude='.idea/'
+  --exclude='*.swp'
+  --exclude='node_modules/'
+  --exclude='__pycache__/'
+  --exclude='*.pyc'
+  --exclude='dist/'
+  --exclude='tests/'
+  # Top-level working folders we never want in a published skill:
+  --exclude='/scratch/'
+  --exclude='/local-notes/'
+  --exclude='/drafts/'
+  --exclude='/sandbox/'
+)
+
+# find-style basenames that should be pruned anywhere in the tree.
+FIND_EXCLUDE_NAMES=(
+  '.git' '.gitignore' '.gitattributes' '.DS_Store' 'Thumbs.db'
+  '.vscode' '.idea' 'node_modules' '__pycache__' 'dist' 'tests'
+)
+
+# Top-level-only exclusions — things like `scratch/` should only match at
+# the root, not `references/scratch/`.
+TOP_LEVEL_EXCLUDE_DIRS=(
+  'scratch' 'local-notes' 'drafts' 'sandbox'
+)
+
 if command -v rsync >/dev/null 2>&1; then
-  rsync -a \
-    --exclude='.git/' \
-    --exclude='.gitignore' \
-    --exclude='.gitattributes' \
-    --exclude='.DS_Store' \
-    --exclude='Thumbs.db' \
-    --exclude='.vscode/' \
-    --exclude='.idea/' \
-    --exclude='*.swp' \
-    --exclude='node_modules/' \
-    --exclude='__pycache__/' \
-    --exclude='*.pyc' \
-    --exclude='dist/' \
-    --exclude='/scratch/' \
-    --exclude='/local-notes/' \
-    --exclude='/drafts/' \
-    --exclude='/sandbox/' \
-    "$SKILL_ROOT"/ "$STAGED"/
+  rsync -a "${RSYNC_EXCLUDES[@]}" "$SKILL_ROOT"/ "$STAGED"/
 else
   # Fallback: copy everything, then prune.
   cp -R "$SKILL_ROOT"/. "$STAGED"/
-  find "$STAGED" \( \
-      -name '.git' -o \
-      -name '.gitignore' -o \
-      -name '.gitattributes' -o \
-      -name '.DS_Store' -o \
-      -name 'Thumbs.db' -o \
-      -name '.vscode' -o \
-      -name '.idea' -o \
-      -name '*.swp' -o \
-      -name 'node_modules' -o \
-      -name '__pycache__' -o \
-      -name '*.pyc' -o \
-      -name 'dist' \
-    \) -exec rm -rf {} + 2>/dev/null || true
+
+  # Prune basenames anywhere in the tree.
+  for name in "${FIND_EXCLUDE_NAMES[@]}"; do
+    find "$STAGED" -name "$name" -exec rm -rf {} + 2>/dev/null || true
+  done
+
+  # Prune `*.swp` and `*.pyc` anywhere.
+  find "$STAGED" \( -name '*.swp' -o -name '*.pyc' \) -exec rm -f {} + \
+    2>/dev/null || true
+
+  # Prune the top-level-only working folders.
+  for d in "${TOP_LEVEL_EXCLUDE_DIRS[@]}"; do
+    rm -rf "$STAGED/$d" 2>/dev/null || true
+  done
 fi
 
 # Confirm SKILL.md survived the copy.

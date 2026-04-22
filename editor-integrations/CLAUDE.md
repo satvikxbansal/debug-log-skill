@@ -2,7 +2,7 @@
 
 > Drop this file at the **root** of your project. If you already have a `CLAUDE.md`, merge the `DEBUG_LOG discipline` section into it.
 >
-> This is a sample. The real skill lives at `~/.claude/skills/debug-log/` (or `.claude/skills/debug-log/` for project-scope). This file is the pointer that activates the discipline in agent sessions.
+> This is a sample. The real skill lives at `~/.claude/skills/debug-log-skill/` (or `.claude/skills/debug-log-skill/` for project-scope). This file is the pointer that activates the discipline in agent sessions.
 
 ---
 
@@ -63,7 +63,7 @@ Edit the checkbox list. Delete rows that don't apply.
 |-------|-------|
 | **Date** | YYYY-MM-DD |
 | **Tags** | `#track-tag #semantic-tag [#more]` — at least one track tag + one semantic tag |
-| **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident |
+| **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident (or extended: Informational, Runtime Warning, UX Regression, Security) |
 | **Environment** | Relevant SDK / library / OS versions |
 | **File(s)** | `path/to/file.ext` |
 | **Symptom** | What failed. Quote the error. |

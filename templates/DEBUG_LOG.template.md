@@ -49,7 +49,7 @@ Read only the entries grep surfaces, plus any they cross-reference.
 |-------|-------|
 | **Date** | YYYY-MM-DD |
 | **Tags** | `#track-tag #semantic-tag [#more]` — at least one track tag + one semantic tag (see references/tag-taxonomy.md) |
-| **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident |
+| **Severity** | Core: Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident · Extended: Informational / Runtime Warning / UX Regression / Security |
 | **Environment** | Relevant SDK / library / OS versions (e.g., `Compose 1.7.2, Kotlin 2.0.0, Android API 34`) |
 | **File(s)** | `path/to/file.ext` (relative to repo root; list all touched) |
 | **Symptom** | What failed. Quote the error, include the firing stack frame. |

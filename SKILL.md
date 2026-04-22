@@ -102,7 +102,7 @@ Even a five-minute typo fix gets an entry. Logging is cheap; rediscovering a sub
 |-------|-------|
 | **Date** | YYYY-MM-DD |
 | **Tags** | `#Tag1 #Tag2 #Tag3` (see references/tag-taxonomy.md — at least one track tag + one semantic tag) |
-| **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident |
+| **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident (plus: Informational, Runtime Warning, UX Regression, Security — see below) |
 | **Environment** | Relevant SDK / library / OS versions (e.g., `Compose 1.7.2, Kotlin 2.0.0, Android API 34`) |
 | **File(s)** | `path/to/file.ext` (relative to project root; list all touched) |
 | **Symptom** | What failed. Quote the error message. Include the relevant stack frame if known. |
@@ -112,6 +112,10 @@ Even a five-minute typo fix gets an entry. Logging is cheap; rediscovering a sub
 | **Iterations** | Integer. How many agent/human turns it took to land a correct fix. `0` = first try. `5+` is a signal to reflect on *why* — often a deep hallucination loop. |
 | **Prevention Rule** | Imperative, specific, checkable. **Why:** one-liner. |
 ```
+
+### Severity vocabulary
+
+Eight **core severities** cover almost every entry: `Build Error`, `Runtime Crash`, `ANR`, `Logic Bug`, `Flaky Test`, `Warning-as-Error`, `Perf Regression`, `Incident`. Four **extended severities** are also accepted by the validator for the minority cases that don't fit the core set: `Informational` (seed rows, meta entries), `Runtime Warning` (warnings that surfaced a latent bug without a crash), `UX Regression` (visible-to-the-user but not a crash), `Security` (security-motivated fix without a crash). Pick the most specific label; when in doubt, prefer a core severity.
 
 ### The four non-negotiable rules
 
@@ -124,7 +128,7 @@ Even a five-minute typo fix gets an entry. Logging is cheap; rediscovering a sub
 
 Tags are what make the log searchable. Every entry carries **at least two tags**:
 
-- One **track tag** from: `#web #ios #android #macos #kotlin #swift #cross-cutting`.
+- **1–2 track tags** from: `#web #ios #android #macos #kotlin #swift #cross-cutting`. Use two only when the bug genuinely spans stacks.
 - One or more **semantic tags** from `references/tag-taxonomy.md` (e.g., `#Compose`, `#StateFlow`, `#Hydration`, `#Permissions`, `#URLSession`).
 
 Prefer tags from the taxonomy. If you need a new tag, add it to `references/tag-taxonomy.md` in the same commit — a one-off tag that only appears once helps nobody.

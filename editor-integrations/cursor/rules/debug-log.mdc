@@ -70,7 +70,7 @@ Edit to reflect your stack. Delete rows that don't apply.
 |-------|-------|
 | **Date** | YYYY-MM-DD |
 | **Tags** | `#track-tag #semantic-tag [#more]` |
-| **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident |
+| **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident (or extended: Informational, Runtime Warning, UX Regression, Security) |
 | **Environment** | Relevant SDK / library / OS versions |
 | **File(s)** | `path/to/file.ext` |
 | **Symptom** | What failed. Quote the error. |

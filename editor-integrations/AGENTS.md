@@ -2,7 +2,7 @@
 
 > Drop this file at the **root** of your project (not inside a subdirectory). If you already have an `AGENTS.md`, merge the `DEBUG_LOG discipline` section into it.
 >
-> `AGENTS.md` is the convention read by Aider, Codex CLI, OpenAI Agents SDK, and a growing number of other agent harnesses. The skill itself lives at `~/.claude/skills/debug-log/` or `tools/debug-log-skill/` (submodule). This file is the pointer.
+> `AGENTS.md` is the convention read by Aider, Codex CLI, OpenAI Agents SDK, and a growing number of other agent harnesses. The skill itself lives at `~/.claude/skills/debug-log-skill/` or `tools/debug-log-skill/` (submodule). This file is the pointer.
 
 ---
 
@@ -67,7 +67,7 @@ Before your commit lands:
 |-------|-------|
 | **Date** | YYYY-MM-DD |
 | **Tags** | `#track-tag #semantic-tag [#more]` |
-| **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident |
+| **Severity** | Build Error / Runtime Crash / ANR / Logic Bug / Flaky Test / Warning-as-Error / Perf Regression / Incident (or extended: Informational, Runtime Warning, UX Regression, Security) |
 | **Environment** | Relevant SDK / library / OS versions |
 | **File(s)** | `path/to/file.ext` |
 | **Symptom** | What failed. Quote the error. |

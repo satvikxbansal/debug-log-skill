@@ -29,7 +29,7 @@ Most teams use Claude Code AND Cursor side-by-side, or Claude + Aider. Dropping 
 
 Two tweaks most projects want:
 
-- **Path to the skill.** Replace `~/.claude/skills/debug-log` with wherever you've installed it (often a submodule at `tools/debug-log-skill/`).
+- **Path to the skill.** Replace `~/.claude/skills/debug-log-skill/` with wherever you've installed it (often a submodule at `tools/debug-log-skill/`).
 - **Track list.** Delete references to tracks you don't use. A pure Rails shop doesn't need iOS or Android in its CLAUDE.md.
 
 ## If your editor isn't listed

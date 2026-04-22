@@ -153,7 +153,7 @@
 | **Iterations** | 4 |
 | **Prevention Rule** | Before calling an uncommon API in agent-generated code, grep the codebase for at least one prior usage; if zero results, open the library's official docs and cite the exact symbol + version in the commit message or plan. **Why:** LLM-invented API names compile against the model's fictional world and only fail at build time here (DL-007). |
 
-### DL-008 — [OBSOLETE] DL-001: hydration guard no longer needed after RSC migration
+### DL-008 — RSC migration retires DL-001 hydration guard
 
 | Field | Value |
 |-------|-------|
